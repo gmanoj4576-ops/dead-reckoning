@@ -9,7 +9,7 @@ class MapEngine {
   constructor() {
     this.map = null;
     this.tileLayers = {};
-    this.activeTileStyle = 'streets';
+    this.activeTileStyle = 'satellite';
     
     // Markers & Overlays
     this.userLocationMarker = null;
@@ -58,7 +58,7 @@ class MapEngine {
     );
 
     // Set Default Layer
-    this.tileLayers.streets.addTo(this.map);
+    this.tileLayers.satellite.addTo(this.map);
 
     // Re-render map tiles correctly if container resizes
     setTimeout(() => this.map.invalidateSize(), 300);
