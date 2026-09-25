@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Local SSL Certificates
+cert.pem
+key.pem
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Build output
+dist/
+.vercel

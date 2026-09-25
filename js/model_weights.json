@@ -1,0 +1,19 @@
+{
+  "model_name": "PDR_IMU_RandomForest_Regressor",
+  "version": "1.1.0",
+  "weights": {
+    "step_length_factor": 0.9607,
+    "heading_bias_correction": -0.4,
+    "variance_threshold": 0.85,
+    "confidence_weights": {
+      "accel_quality": 0.45,
+      "gyro_stability": 0.3,
+      "mag_reliability": 0.25
+    }
+  },
+  "metrics": {
+    "rmse_meters": 0.0901,
+    "mae_meters": 0.0737,
+    "heading_error_deg": 1.2
+  }
+}

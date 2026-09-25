@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ApexMaps | Real-time Maps & GPS-Denied AI Navigation</title>
+  <meta name="description" content="A feature-rich Google Maps clone featuring live location tracking, place search, multi-modal directions, voice-guided navigation, and GPS-denied PDR AI navigation.">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Main Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="app" class="app-container">
+    
+    <!-- MAP CONTAINER -->
+    <div id="map"></div>
+
+    <!-- FLOATING TOP SEARCH & HEADER BAR -->
+    <header class="search-header floating-card" id="searchHeader">
+      <div class="search-box">
+        <button id="btnToggleSidebar" class="icon-btn tooltip" data-tooltip="Menu & Directions">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        
+        <div class="input-wrapper">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          <input type="text" id="searchInput" placeholder="Search places, addresses..." autocomplete="off">
+          <button id="btnClearSearch" class="icon-btn-sm hidden">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+
+        <div class="header-divider"></div>
+
+        <button id="btnOpenDirections" class="action-btn-directions tooltip" data-tooltip="Get Directions">
+          <i class="fa-solid fa-diamond-turn-right"></i>
+          <span class="btn-text">Directions</span>
+        </button>
+      </div>
+
+      <!-- AUTOCOMPLETE SUGGESTIONS DROPDOWN -->
+      <div id="searchSuggestions" class="suggestions-dropdown hidden"></div>
+
+      <!-- CATEGORY QUICK SEARCH CHIPS -->
+      <div class="category-chips">
+        <button class="chip-btn" data-category="restaurant"><i class="fa-solid fa-utensils"></i> Restaurants</button>
+        <button class="chip-btn" data-category="gas"><i class="fa-solid fa-gas-pump"></i> Gas</button>
+        <button class="chip-btn" data-category="cafe"><i class="fa-solid fa-mug-hot"></i> Cafes</button>
+        <button class="chip-btn" data-category="parking"><i class="fa-solid fa-square-parking"></i> Parking</button>
+        <button class="chip-btn" data-category="hospital"><i class="fa-solid fa-hospital"></i> Hospitals</button>
+        <button class="chip-btn" data-category="supermarket"><i class="fa-solid fa-cart-shopping"></i> Groceries</button>
+      </div>
+    </header>
+
+    <!-- MOBILE PERMISSION PROMPT BANNER -->
+    <div id="mobilePermBanner" class="mobile-perm-banner">
+      <div class="perm-info">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span id="mobilePermStatusText">Real-Time Mobile Sensors & GPS Acquisition</span>
+      </div>
+      <div class="perm-btn-group">
+        <button id="btnGrantGps" class="perm-btn gps"><i class="fa-solid fa-location-arrow"></i> 📍 Force GPS Sync</button>
+        <button id="btnGrantSensors" class="perm-btn sensors"><i class="fa-solid fa-mobile-screen"></i> 📱 Enable Gyro & Sensors</button>
+      </div>
+    </div>
+
+    <!-- GPS / SENSOR NAVIGATION STATUS BADGE -->
+    <div id="gpsStatusBadge" class="gps-status-badge gps-available">
+      <span class="status-indicator-dot"></span>
+      <div class="status-info">
+        <span id="gpsStatusText" class="status-title">🟢 GPS Navigation</span>
+        <span id="gpsConfidenceText" class="status-confidence">Confidence 100%</span>
+      </div>
+    </div>
+
+    <!-- RIGHT-SIDE LIVE SENSOR TELEMETRY PANEL -->
+    <aside id="sensorRightPanel" class="sensor-right-panel floating-card">
+      <div class="sensor-panel-header">
+        <div class="header-title-sm">
+          <i class="fa-solid fa-compass title-icon-sm"></i>
+          <span>Live Sensor Telemetry</span>
+        </div>
+        <button id="btnToggleSensorPanel" class="icon-btn-sm">
+          <i id="sensorPanelIcon" class="fa-solid fa-chevron-right"></i>
+        </button>
+      </div>
+
+      <div class="sensor-panel-body">
+        <!-- HARDWARE SENSORS DIAGNOSTIC STATUS -->
+        <div class="hw-status-bar">
+          <span class="hw-item">Gyro: <strong id="hwGyro" class="badge-status seeking">SEEKING</strong></span>
+          <span class="hw-item">Accel: <strong id="hwAccel" class="badge-status seeking">SEEKING</strong></span>
+          <span class="hw-item">Orient: <strong id="hwOrient" class="badge-status seeking">SEEKING</strong></span>
+        </div>
+
+        <!-- 1. PHONE ROTATION & TURN ANGLE GAUGE -->
+        <div class="sensor-card highlight-card">
+          <div class="card-label"><i class="fa-solid fa-rotate"></i> Phone Orientation & Turning</div>
+          
+          <div class="turn-gauge-container">
+            <div class="compass-dial" id="compassDial">
+              <span class="north-mark">N</span>
+              <div class="compass-arrow" id="compassArrow"></div>
+            </div>
+            
+            <div class="turn-stats">
+              <div id="turnAngleText" class="turn-main-val">Turned: 0°</div>
+              <div id="headingText" class="turn-sub-val">Heading: 0° N</div>
+            </div>
+          </div>
+
+          <div class="tilt-row">
+            <span>Pitch (β): <strong id="pitchVal">0°</strong></span>
+            <span>Roll (γ): <strong id="rollVal">0°</strong></span>
+          </div>
+        </div>
+
+        <!-- 2. ACCELEROMETER & SPEED METER -->
+        <div class="sensor-card">
+          <div class="card-label"><i class="fa-solid fa-gauge-high"></i> Accelerometer & Speed</div>
+          <div class="accel-speed-display">
+            <div class="speed-box">
+              <span id="accelSpeedVal" class="speed-num">0.0</span>
+              <span class="speed-unit">KM/H (Accel)</span>
+            </div>
+            <div class="speed-box">
+              <span id="accelSpeedMs" class="speed-num">0.0</span>
+              <span class="speed-unit">M/S</span>
+            </div>
+          </div>
+          
+          <div class="accel-channels">
+            <div class="chan">X: <span id="accelX">0.00</span></div>
+            <div class="chan">Y: <span id="accelY">0.00</span></div>
+            <div class="chan">Z: <span id="accelZ">9.81</span></div>
+            <div class="chan highlight-chan">Linear: <span id="accelMag">0.00</span> m/s²</div>
+          </div>
+        </div>
+
+        <!-- 3. GYROSCOPE ROTATION RATES -->
+        <div class="sensor-card">
+          <div class="card-label"><i class="fa-solid fa-arrows-spin"></i> Gyroscope Rotation</div>
+          <div class="sensor-channels-grid">
+            <div>Alpha (α): <strong id="gyroX">0.0</strong>°/s</div>
+            <div>Beta (β): <strong id="gyroY">0.0</strong>°/s</div>
+            <div>Gamma (γ): <strong id="gyroZ">0.0</strong>°/s</div>
+          </div>
+        </div>
+
+        <!-- 4. MAGNETOMETER FIELD -->
+        <div class="sensor-card">
+          <div class="card-label"><i class="fa-solid fa-magnet"></i> Magnetometer Field (µT)</div>
+          <div class="sensor-channels-grid">
+            <div>Mag X: <strong id="magX">21.5</strong></div>
+            <div>Mag Y: <strong id="magY">-42.1</strong></div>
+            <div>Mag Z: <strong id="magZ">-12.3</strong></div>
+          </div>
+        </div>
+
+        <!-- 5. PDR STEP DETECTOR & GAIT -->
+        <div class="sensor-card">
+          <div class="card-label"><i class="fa-solid fa-shoe-prints"></i> PDR Step & Gait Engine</div>
+          <div class="step-gait-row">
+            <div>Steps: <strong id="pdrStepCount" class="step-num-badge">0</strong></div>
+            <div>Est Step Len: <strong id="pdrStepLen">0.73 m</strong></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- SIDEBAR DIRECTIONS & ROUTE PANEL -->
+    <aside class="sidebar-panel hidden" id="sidebarPanel">
+      <div class="sidebar-header">
+        <div class="header-title">
+          <i class="fa-solid fa-route title-icon"></i>
+          <h2>Directions</h2>
+        </div>
+        <button id="btnCloseSidebar" class="icon-btn">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- TRAVEL MODE SELECTOR -->
+      <div class="mode-selector">
+        <button class="mode-btn active" data-mode="driving" title="Driving">
+          <i class="fa-solid fa-car"></i>
+          <span>Drive</span>
+        </button>
+        <button class="mode-btn" data-mode="bicycling" title="Cycling">
+          <i class="fa-solid fa-person-biking"></i>
+          <span>Cycle</span>
+        </button>
+        <button class="mode-btn" data-mode="walking" title="Walking">
+          <i class="fa-solid fa-person-walking"></i>
+          <span>Walk</span>
+        </button>
+      </div>
+
+      <!-- ORIGIN & DESTINATION INPUT FIELDS -->
+      <div class="route-inputs-card">
+        <div class="route-inputs-decor">
+          <span class="dot origin-dot"></span>
+          <span class="line-connector"></span>
+          <span class="dot dest-dot"></span>
+        </div>
+
+        <div class="route-inputs-group">
+          <div class="input-relative">
+            <input type="text" id="originInput" placeholder="Choose starting point or 'My Location'" autocomplete="off">
+            <button id="btnUseMyLocation" class="loc-pin-btn tooltip" data-tooltip="Use My Location">
+              <i class="fa-solid fa-crosshairs"></i>
+            </button>
+            <div id="originSuggestions" class="suggestions-dropdown inner-dropdown hidden"></div>
+          </div>
+
+          <div class="input-relative">
+            <input type="text" id="destInput" placeholder="Choose destination..." autocomplete="off">
+            <div id="destSuggestions" class="suggestions-dropdown inner-dropdown hidden"></div>
+          </div>
+        </div>
+
+        <button id="btnSwapLocations" class="icon-btn swap-btn tooltip" data-tooltip="Swap origin & destination">
+          <i class="fa-solid fa-arrow-down-up-lock"></i>
+        </button>
+      </div>
+
+      <!-- ROUTE RESULTS CARD -->
+      <div id="routeResultsCard" class="route-results-card hidden">
+        <div class="route-summary">
+          <div class="summary-primary">
+            <span id="routeDuration" class="route-time">-- min</span>
+            <span id="routeDistance" class="route-dist">-- km</span>
+          </div>
+          <div class="summary-secondary">
+            <span id="routeVia" class="route-via">via --</span>
+            <span class="route-badge fastest">Fastest route</span>
+          </div>
+        </div>
+
+        <div class="action-buttons-row">
+          <button id="btnStartNav" class="btn-primary-nav">
+            <i class="fa-solid fa-location-arrow"></i> Start Navigation
+          </button>
+          <button id="btnSimulateNav" class="btn-secondary-nav" title="Simulate Turn-by-Turn Guidance">
+            <i class="fa-solid fa-play"></i> Demo Route
+          </button>
+        </div>
+
+        <!-- MANEUVERS / DIRECTIONS STEPS LIST -->
+        <div class="maneuvers-header">
+          <h3>Turn-by-turn instructions</h3>
+        </div>
+        <ol id="maneuverList" class="maneuver-list"></ol>
+      </div>
+
+      <!-- SAVED PLACES / HISTORY SECTION -->
+      <div id="savedPlacesSection" class="saved-section">
+        <h3><i class="fa-solid fa-bookmark"></i> Saved Places</h3>
+        <div id="savedPlacesList" class="saved-list">
+          <p class="empty-state">No saved places yet. Click any place on the map to save it!</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- LIVE TURN-BY-TURN NAVIGATION HUD OVERLAY -->
+    <div id="navHudOverlay" class="nav-hud-overlay hidden">
+      <!-- TOP GUIDANCE BANNER -->
+      <div class="nav-top-banner">
+        <div class="turn-icon-container">
+          <i id="navTurnIcon" class="fa-solid fa-arrow-up turn-icon"></i>
+        </div>
+        <div class="turn-details">
+          <div id="navTurnDist" class="turn-distance">In 300 m</div>
+          <div id="navTurnInstruction" class="turn-instruction">Head north on main road</div>
+        </div>
+        <button id="btnToggleVoice" class="icon-btn-hud tooltip" data-tooltip="Toggle Voice Prompts">
+          <i id="voiceIcon" class="fa-solid fa-volume-high"></i>
+        </button>
+      </div>
+
+      <!-- SIMULATION CONTROLS (Floating Bar) -->
+      <div id="simControlBar" class="sim-control-bar hidden">
+        <span class="sim-badge"><i class="fa-solid fa-robot"></i> Simulation Mode</span>
+        <button id="btnPauseSim" class="sim-btn"><i class="fa-solid fa-pause"></i></button>
+        <button id="btnSpeedSim" class="sim-btn-speed">1x</button>
+      </div>
+
+      <!-- BOTTOM TRIP STATS BAR -->
+      <div class="nav-bottom-bar">
+        <div class="trip-stat">
+          <span class="stat-value" id="navSpeedVal">0</span>
+          <span class="stat-unit">KM/H</span>
+        </div>
+        <div class="trip-stat main-stat">
+          <span class="stat-value highlight" id="navTimeRemain">--</span>
+          <span class="stat-label">REMAINING</span>
+        </div>
+        <div class="trip-stat">
+          <span class="stat-value" id="navDistRemain">-- km</span>
+          <span class="stat-label" id="navEtaTime">ETA --:--</span>
+        </div>
+        <button id="btnExitNav" class="btn-exit-nav">
+          <i class="fa-solid fa-xmark"></i> Exit
+        </button>
+      </div>
+    </div>
+
+    <!-- MAP FLOATING CONTROL BUTTONS -->
+    <div class="map-controls-group">
+      <!-- DEBUG / DEMO MODAL TOGGLE -->
+      <button id="btnToggleDebug" class="map-ctrl-btn debug-btn tooltip" data-tooltip="AI & GPS-Denied Debug Panel">
+        <i class="fa-solid fa-microchip"></i>
+      </button>
+
+      <!-- RECENTER / MY LOCATION -->
+      <button id="btnRecenter" class="map-ctrl-btn tooltip" data-tooltip="My Location">
+        <i class="fa-solid fa-location-crosshairs"></i>
+      </button>
+
+      <!-- TILE MAP STYLE SWITCHER -->
+      <div class="map-style-dropdown-container">
+        <button id="btnStyleToggle" class="map-ctrl-btn tooltip" data-tooltip="Map Layers">
+          <i class="fa-solid fa-layer-group"></i>
+        </button>
+        <div id="styleMenu" class="style-menu hidden">
+          <button class="style-option active" data-style="streets">
+            <img src="https://a.tile.openstreetmap.org/0/0/0.png" alt="Streets">
+            <span>Default</span>
+          </button>
+          <button class="style-option" data-style="satellite">
+            <img src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/0/0/0" alt="Satellite">
+            <span>Satellite</span>
+          </button>
+          <button class="style-option" data-style="dark">
+            <img src="https://a.basemaps.cartocdn.com/dark_all/0/0/0.png" alt="Dark">
+            <span>Dark Mode</span>
+          </button>
+          <button class="style-option" data-style="topo">
+            <img src="https://a.tile.opentopomap.org/0/0/0.png" alt="Topo">
+            <span>Terrain</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ZOOM CONTROLS -->
+      <div class="zoom-btn-group">
+        <button id="btnZoomIn" class="map-ctrl-btn-sm">+</button>
+        <button id="btnZoomOut" class="map-ctrl-btn-sm">−</button>
+      </div>
+    </div>
+
+    <!-- DEVELOPER LIVE DEBUG & GPS-DENIED DEMO PANEL -->
+    <div id="debugPanel" class="debug-panel hidden">
+      <div class="debug-header">
+        <h3><i class="fa-solid fa-brain"></i> GPS-Denied AI Navigation Debug</h3>
+        <button id="btnCloseDebug" class="close-card-btn"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      
+      <div class="debug-content">
+        <!-- DEMO SIMULATION CONTROLS -->
+        <div class="debug-section">
+          <h4><i class="fa-solid fa-vial"></i> GPS-Denied Simulation Controls</h4>
+          <div class="demo-btn-grid">
+            <button id="btnSimGpsLoss" class="demo-act-btn warn">
+              <i class="fa-solid fa-tunnel"></i> Enter Tunnel (Lose GPS)
+            </button>
+            <button id="btnSimGpsRestore" class="demo-act-btn success">
+              <i class="fa-solid fa-satellite-dish"></i> Exit Tunnel (Restore GPS)
+            </button>
+            <button id="btnSimSensorWalking" class="demo-act-btn info">
+              <i class="fa-solid fa-shoe-prints"></i> Toggle Walking IMU
+            </button>
+            <button id="btnExportTrajectory" class="demo-act-btn secondary">
+              <i class="fa-solid fa-download"></i> Log Trajectory CSV
+            </button>
+          </div>
+        </div>
+
+        <!-- REAL-TIME TELEMETRY -->
+        <div class="debug-section">
+          <h4><i class="fa-solid fa-gauge-high"></i> Sensor & Fusion Telemetry</h4>
+          <div class="telemetry-grid">
+            <div class="tele-item"><span>GPS State:</span> <strong id="teleGpsState">AVAILABLE</strong></div>
+            <div class="tele-item"><span>Nav Mode:</span> <strong id="teleNavMode">GPS</strong></div>
+            <div class="tele-item"><span>Confidence:</span> <strong id="teleConfidence" style="color:var(--green)">100%</strong></div>
+            <div class="tele-item"><span>Detected Steps:</span> <strong id="teleSteps">0</strong></div>
+            <div class="tele-item"><span>Heading:</span> <strong id="teleHeading">0°</strong></div>
+            <div class="tele-item"><span>Linear Accel:</span> <strong id="teleAccel">0.00 m/s²</strong></div>
+            <div class="tele-item"><span>Gyro Rotation:</span> <strong id="teleGyro">0.00 rad/s</strong></div>
+            <div class="tele-item"><span>Fused Pos:</span> <strong id="teleFusedPos">0.00, 0.00</strong></div>
+            <div class="tele-item"><span>Map Matched:</span> <strong id="teleMapMatched">No</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOCATION PLACE DETAILS MODAL / CARD -->
+    <div id="placeCard" class="place-card hidden">
+      <button id="btnClosePlaceCard" class="close-card-btn"><i class="fa-solid fa-xmark"></i></button>
+      <div class="card-header">
+        <i class="fa-solid fa-location-dot card-pin-icon"></i>
+        <div>
+          <h3 id="cardTitle">Selected Location</h3>
+          <p id="cardSubtitle" class="card-address">Loading address details...</p>
+        </div>
+      </div>
+      <div class="card-actions">
+        <button id="btnCardDirectionsTo" class="card-action-btn primary">
+          <i class="fa-solid fa-diamond-turn-right"></i> Directions
+        </button>
+        <button id="btnCardSave" class="card-action-btn secondary">
+          <i class="fa-regular fa-bookmark"></i> Save
+        </button>
+      </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toastContainer" class="toast-container"></div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- JavaScript Modules -->
+  <script type="module" src="js/gpsMonitor.js"></script>
+  <script type="module" src="js/sensorCollector.js"></script>
+  <script type="module" src="js/pdrEngine.js"></script>
+  <script type="module" src="js/mlPredictor.js"></script>
+  <script type="module" src="js/sensorFusion.js"></script>
+  <script type="module" src="js/mapMatching.js"></script>
+  <script type="module" src="js/mapEngine.js"></script>
+  <script type="module" src="js/locationService.js"></script>
+  <script type="module" src="js/searchService.js"></script>
+  <script type="module" src="js/routingService.js"></script>
+  <script type="module" src="js/navigationEngine.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
